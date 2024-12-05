@@ -117,8 +117,8 @@ To make all components of ChatSpot work together, follow these steps:
      python3 main.py
      ```
 
-  - In addition, the execution on the RaspberryPi can be automated with a job-scheduler like **cron**.
-    This crontab routine activates all the funcionality when turning the RaspberryPi on:
+   - In addition, the execution on the RaspberryPi can be automated with a job-scheduler like **cron**.
+     This crontab routine activates all the funcionality when turning the RaspberryPi on:
 
      ```bash
      @reboot /bin/bash -c "source <env_name></env_name>/bin/activate && cd path/to/the/project && python main.py" >> /path/to/log/folder/ChatSpot-raspi.log 2>&1
