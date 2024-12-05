@@ -1,0 +1,22 @@
+# install these packages in the RaspberryPi in the virtual environment
+
+bme680==2.0.0
+bmm150==0.2.2
+certifi==2024.8.30
+charset-normalizer==3.4.0
+enum-tools==0.9.0.post1
+idna==3.10
+paho-mqtt==2.1.0
+Pygments==2.18.0
+pyttsx3==2.98
+requests==2.32.3
+RPi.GPIO==0.7.1
+rpi_ws281x==5.0.0
+Seeed-grove.py==0.7
+seeed-python-dht==0.0.2
+sgp30==0.1.6
+smbus==1.1.post2
+smbus2==0.4.3
+typing_extensions==4.12.2
+urllib3==2.2.3
+
