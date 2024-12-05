@@ -12,19 +12,15 @@ from smbus2 import SMBus
 import paho.mqtt.client as mqtt
 
 import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)    # BCM mode for the grovehat connections
 
-GPIO.setmode(GPIO.BCM)
-
-# MQTT connections
-address = "10.172.117.154"
-topic = "chatspot"
-
+# MQTT connections using Mosquitto Broker
+address = "10.172.117.154"    # Broker port
+topic = "chatspot"            # Topic
 client = mqtt.Client()
 client.connect(address)
 
 # Questions
-
-
 questions = [
     "What’s your favorite way to spend a weekend?",
     "Do you prefer coffee or tea, and why?",
@@ -127,31 +123,46 @@ questions = [
     "What’s your dream vacation activity?"
 ]
 
-
-# PIN VARIABLES
-GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button 1
+# Grove pin variables selection
+GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button 1: Starting conversation
 button1 = GPIO.input(22)
 
-GPIO.setup(24, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button 2
+GPIO.setup(24, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button 2: Ask question
 button2 = GPIO.input(24)
 
-GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button 3
+GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button 3: Terminate conversation
 button3 = GPIO.input(26)
 
-userWait = False # For button logic
-
-bus = SMBus(1) # Screen LED
+# Screen LED inicialization
+bus = SMBus(1) 
 RGB = 0x62
 TEXT = 0x3e
 lcd = JHD1802()
 
-adc = ADC() # Potentiometer
+# Potentiometer inicialization
+adc = ADC() 
 POT = 0
 stopVol = False
 
-ultrasound = 5 # Ultrasound
+# Ultrasound threshold
+ultrasound = 5 
 
-# CODE TO SHOW THE QUESTION ON THE LCD SCREEN WHEN PRESSING A BUTTON
+# Thread to be able to change the volumen at anytime (playing a question, actioning a button,..)
+volThread = threading.Thread(target=adjustVol, daemon=True)  
+volThread.start()
+
+# TTS engine inicialization
+ttsEngine = pyttsx3.init()
+ttsEngine.setProperty('rate', 100)
+
+# For button logic and question time duration logic
+userWait = False 
+waitStart = 0
+questionStart = None
+questionEnd = 0
+questionsDict = {}
+
+# Code to show the question in the RGB LCD screen when pressing button 2
 def showQuestion(question):
     lcd.clear()
     if len(question) <= 16:
@@ -166,33 +177,28 @@ def showQuestion(question):
         lcd.setCursor(0,0)
         lcd.write(question[-16:])
 
+# Code to play and show the question and save it for sending it to the broker
 def ask():
-    question = random.choice(questions)
-    play_audio(question)
+    question = random.choice(questions) 
+    playAudio(question)
     showQuestion(question)
     print("Question:", question)
     return question
 
-# CODE TO ADJUST THE VOLUME OF THE SPEAKER
+# Code to adjust the volumen of the speaker
 def adjustVol():
     while not stopVol:
         value = adc.read(POT)
-        volume = int((value / 1023) * 100)
-        os.system(f"amixer sset 'Master' {volume}% > /dev/null 2>&1")
+        volume = int((value / 1023) * 100) # Change the volumen to %
+        os.system(f"amixer sset 'Master' {volume}% > /dev/null 2>&1") # Show the actual volumen from 0% to 100%
         time.sleep(0.1)
 
-volThread = threading.Thread(target=adjustVol, daemon=True)
-volThread.start()
+# Code to TTS the question using the speaker
+def playAudio(question):
+    ttsEngine.say(question)
+    ttsEngine.runAndWait()
 
-# CODE TO TTS THE QUESTION ON THE SPEAKER
-tts_engine = pyttsx3.init()
-tts_engine.setProperty('rate', 100)
-
-def play_audio(question):
-    tts_engine.say(question)
-    tts_engine.runAndWait()
-
-# CODE TO CHANGE SCREEN LED COLOR DEPENDING ON ACTION
+# Code to set the possible colors in the RGB LCD screen
 def setRGB(r, g, b):
     bus.write_byte_data(RGB, 0, 0)
     bus.write_byte_data(RGB, 1, 0)
@@ -201,76 +207,56 @@ def setRGB(r, g, b):
     bus.write_byte_data(RGB, 3, g)
     bus.write_byte_data(RGB, 2, b)
 
+# Code to change the RGB LCD screen depending the situation
 def changeLed(state):
-    if(state == 0):
+    if(state == 0):    # Awaiting second user
         print("Led cambiado a blanco")
         setRGB(255, 255, 255)
-    elif(state == 1):
+    elif(state == 1):  # Printing question on the LCD screen
         print("Led cambiado a verde")
         setRGB(0, 255, 0)
     elif(state == 2):
-        print("Led cambiado a rojo")
+        print("Led cambiado a rojo")    # Terminating conversation and sending the information to the broker
         setRGB(255, 0, 0)
-    elif(state == 3):
+    elif(state == 3):    # Awaiting first user
         print("Led cambiado a morado")
         setRGB(87, 35, 100)
     else:
         print("Led apagado")
         setRGB(0, 0, 0)
 
-# CODE TO DETECT THE DISTANCE TO THE DEVICE
+# Code to detect the distance of the user to the device
 def calcDistance():
     GPIO.setup(ultrasound, GPIO.OUT)
-
     GPIO.output(ultrasound, GPIO.LOW)
     time.sleep(0.2)
     GPIO.output(ultrasound, GPIO.HIGH)
     time.sleep(0.5)
-
     GPIO.output(ultrasound, GPIO.LOW)
-
     GPIO.setup(ultrasound, GPIO.IN)
-    start_time = time.time()
+    startTime = time.time()
+    
     while GPIO.input(ultrasound) == 0:
-        start_time = time.time()
-
+        startTime = time.time()
     while GPIO.input(ultrasound) == 1:
-        stop_time = time.time()
+        stopTime = time.time()
 
-    time_elapsed = stop_time - start_time
-    distancia = (time_elapsed * 34300) / 2
+    timeElapsed = stopTime - startTime
+    distance = (timeElapsed * 34300) / 2    # Operation to put the distance in centimeters
 
-    return distancia
+    return distance
 
-# MOSQUITTO PUBLISHER
+# Mosquitto publisher to the broker
 def publishMessage(client, topic, message):
     client.publish(topic, message)
-    print(f"Mensaje publicado en la db de ChatSpot: {message}")
+    print(f"Message published in the ChatSpot DB: {message}")
 
+# Prepares and generates the MQTT message as a JSON
 def generateMessage(questionsDict, convDuration, waitTime):
-    """
-    Prepares and generates the mqtt message as a JSON
-
-    Parameters
-    ----------
-    questionsDict (dict): Dictionary with the asked question (str) and its duration (float)
-    conDuration (float): Duration of the conversation
-    waitTime (float): Time elapsed since the first user pressed the start button and another person seated down
-    """
-
-    message = {
-        "questionsDict": questionsDict,
-        "convDuration": convDuration,
-        "waitTime":   waitTime
-    }
+    message = {"questionsDict": questionsDict, "convDuration": convDuration, "waitTime":   waitTime}
     return json.dumps(message)
 
-waitStart = 0
-questionStart =None
-questionEnd = 0
-questionsDict = {}
-
-# MAIN EXECUTION
+# ChatSpot main execution
 try:
     while True:
         changeLed(3)
@@ -320,6 +306,7 @@ except KeyboardInterrupt:
     print("Keyboard interrupt, cleaning up GPIOs...")
     GPIO.cleanup()
 finally:
+    print("Deactivating ChatSpot...")
     lcd.clear()
     setRGB(0, 0, 0)
     stopVol = True
