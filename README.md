@@ -1,4 +1,4 @@
-# ChatSpot: Meet new people throug IoT
+# ChatSpot: Meet new people through IoT
 
 **ChatSpot** is an RaspberryPi-based device designed to promote social interaction and community building in public and private spaces. By facilitating face-to-face conversations with a simple, user-friendly interface, ChatSpot helps people overcome barriers to social engagement and reduces feelings of loneliness in communities.
 
@@ -91,11 +91,19 @@ Both the PC/Server and the RaspberryPi require Python to be installed, as well a
   - [SQLite](https://www.sqlite.org/) to store the data in a local database.
   - Configuration of Mosquitto to act as the broker.
   - All the python packages listed in the [pc-requirements.txt](broker/pc-requirements.txt).
-
+   
+    ```bash 
+     pip install -r pc-requirements.txt
+    ```
+    
 - **RaspberrPi requirements**
   - Mosquitto client.
   - A python virtual environment using [venv](https://docs.python.org/es/3/library/venv.html)
   - All the python packages listed in the [raspi-requirements.txt](raspi/raspi-requirements.txt)
+
+    ```bash 
+     pip install -r raspi-requirements.txt
+    ```
 
 #### **Execution**
 
@@ -104,12 +112,12 @@ To make all components of ChatSpot work together, follow these steps:
 1. **On the Raspberry Pi:**
    - Launch the main program that controls the ChatSpot device by running:
 
-     ```bash
-     python3 main.py  
+     ```bash 
      source <env_name>/bin/activate
+     python3 main.py
      ```
 
-    In addition, the execution on the RaspberryPi can be automated with a job-scheduler like **cron**.
+  - In addition, the execution on the RaspberryPi can be automated with a job-scheduler like **cron**.
     This crontab routine activates all the funcionality when turning the RaspberryPi on:
 
      ```bash
@@ -126,6 +134,5 @@ To make all components of ChatSpot work together, follow these steps:
    - Launch the visualization dashboard for monitoring and managing ChatSpot interactions:
 
      ```bash
-     python main.py
      python visu-dash.py
      ```
