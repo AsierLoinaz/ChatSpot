@@ -10,12 +10,11 @@ TOPIC = "chatspot"
 # Configuración de la base de datos SQLite
 DB_FILE = "ChatSpot.db"
 
-# Función para inicializar la base de datos
+# Initalize database if it does not exist
 def initialize_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Crear tablas si no existen
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pregunta (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,13 +44,13 @@ def initialize_db():
     conn.commit()
     conn.close()
 
-# Función para manejar el mensaje recibido
+# Get mqtt message and handle them
 def on_message(client, userdata, msg):
-    payload = msg.payload.decode("utf-8")  # Decodifica el mensaje recibido
+    payload = msg.payload.decode("utf-8")  
     print(f"Mensaje recibido: {payload} en el topic {msg.topic}")
     
     try:
-        # Suponemos que el mensaje es JSON con datos para las tablas
+        # Gets the json in the message
         data = json.loads(payload)
         print(data)
         questionsDict = data.get("questionsDict", {})
@@ -63,26 +62,26 @@ def on_message(client, userdata, msg):
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
 
-        # Insertar cada pregunta y asociarla a una conversación
+        # Insert data on the database
         for pregunta_text, duracion_pregunta in questionsDict.items():
-            # Insertar o recuperar la pregunta
+            
             cursor.execute("SELECT id FROM pregunta WHERE pregunta = ?", (pregunta_text,))
             result = cursor.fetchone()
 
-            if result:
+            if result: # If the question already exists, do not add it to the questions table
                 id_pregunta = result[0]  # Recuperar el ID existente
             else:
-                # Insertar la nueva pregunta
+                # New questions, add it to db
                 cursor.execute("INSERT INTO pregunta (pregunta) VALUES (?)", (pregunta_text,))
                 id_pregunta = cursor.lastrowid
-            # Insertar la conversación
+            # Add conversation to db
             cursor.execute("""
                 INSERT INTO conversacion (id_pregunta, duracion, numero_preguntas, tiempo_espera)
                 VALUES (?, ?, ?, ?)
             """, (id_pregunta, convDuration, len(questionsDict), waitTime))
             id_conversacion = cursor.lastrowid
 
-            # Insertar la duración de esta pregunta
+            # Add question duration to db
             cursor.execute("""
                 INSERT INTO tiempoPregunta (id_pregunta, id_conversacion, duracion_pregunta)
                 VALUES (?, ?, ?)
@@ -91,23 +90,23 @@ def on_message(client, userdata, msg):
         conn.commit()
         conn.close()
 
-        print("Datos almacenados exitosamente en la base de datos.")
+        print("Data sucessfully stored in DB.")
     except Exception as e:
-        print(f"Error procesando el mensaje: {e}")
+        print(f"Error processing message: {e}")
 
 
-# Configuración del cliente MQTT
+# MQTT configuration and main 
 def main():
     initialize_db()
-    
+    # MQTT broker address and topic subscription
     client = Client()
-    client.on_message = on_message  # Asigna la función de callback
-    client.connect(BROKER_ADDRESS)  # Conecta al broker
+    client.on_message = on_message  
+    client.connect(BROKER_ADDRESS)  
 
-    client.subscribe(TOPIC)  # Suscribirse al topic
-    print(f"Conectado al broker en {BROKER_ADDRESS} y suscrito al topic '{TOPIC}'")
+    client.subscribe(TOPIC)  
+    print(f"Conected to broker in {BROKER_ADDRESS} y and subscribed to '{TOPIC}'")
     
-    client.loop_forever()  # Mantiene la conexión abierta
+    client.loop_forever()  # Loop forever to keep listening
 
 if __name__ == "__main__":
     main()

@@ -109,7 +109,7 @@ To make all components of ChatSpot work together, follow these steps:
      source <env_name>/bin/activate
      ```
 
-    In addition, the execution on the RaspberryPi can be automated with a job-scheduler like **cron**. 
+    In addition, the execution on the RaspberryPi can be automated with a job-scheduler like **cron**.
     This crontab routine activates all the funcionality when turning the RaspberryPi on:
 
      ```bash

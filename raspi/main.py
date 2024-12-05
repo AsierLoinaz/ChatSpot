@@ -10,17 +10,16 @@ from grove.display.jhd1802 import JHD1802
 from grove.adc import ADC
 from smbus2 import SMBus
 import paho.mqtt.client as mqtt
-
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)    # BCM mode for the grovehat connections
 
 # MQTT connections using Mosquitto Broker
-address = "10.172.117.154"    # Broker port
+address = "10.172.117.154"    # Broker ip
 topic = "chatspot"            # Topic
 client = mqtt.Client()
 client.connect(address)
 
-# Questions
+# List of questions
 questions = [
     "What’s your favorite way to spend a weekend?",
     "Do you prefer coffee or tea, and why?",
@@ -147,11 +146,7 @@ stopVol = False
 # Ultrasound threshold
 ultrasound = 5 
 
-# Thread to be able to change the volumen at anytime (playing a question, actioning a button,..)
-volThread = threading.Thread(target=adjustVol, daemon=True)  
-volThread.start()
-
-# TTS engine inicialization
+# TTS engine inicialization and properties
 ttsEngine = pyttsx3.init()
 ttsEngine.setProperty('rate', 100)
 
@@ -165,12 +160,12 @@ questionsDict = {}
 # Code to show the question in the RGB LCD screen when pressing button 2
 def showQuestion(question):
     lcd.clear()
-    if len(question) <= 16:
+    if len(question) <= 16: # For short questions to appear correctly
         lcd.setCursor(0,0)
         lcd.write(question)
         time.sleep(2)
     else:
-        for i in range(len(question) -15):
+        for i in range(len(question) -15): # Longer questions
             lcd.setCursor(0,0)
             lcd.write(question[i:i+16])
             time.sleep(0.2)
@@ -192,6 +187,10 @@ def adjustVol():
         volume = int((value / 1023) * 100) # Change the volumen to %
         os.system(f"amixer sset 'Master' {volume}% > /dev/null 2>&1") # Show the actual volumen from 0% to 100%
         time.sleep(0.1)
+
+# Thread to be able to change the volumen at anytime (playing a question, actioning a button,..)
+volThread = threading.Thread(target=adjustVol, daemon=True)  
+volThread.start()
 
 # Code to TTS the question using the speaker
 def playAudio(question):
@@ -261,7 +260,7 @@ try:
     while True:
         changeLed(3)
         button1 = GPIO.input(22)
-        if calcDistance() > 30:
+        if calcDistance() > 30: # If a user is nearby
             waitStart = time.time()
             print("Waiting for 2 users")
         else:
@@ -272,16 +271,16 @@ try:
                 changeLed(0)
                 convStart = time.time()
             print("2 users close to the ChatSpot, starting conversation...")
-            while userWait:
+            while userWait: # Start conversation
                 button2 = GPIO.input(24)
                 button3 = GPIO.input(26)
                 time.sleep(0.5)
                 print("Press the button2 to ask a new question...")
-                if button2:
+                if button2: # Ask a new question
                     changeLed(1)
                     question = ask()
                     lcd.clear()
-                    if questionStart is None:
+                    if questionStart is None: # Handles first question of conversation
                         questionStart = time.time()
                         questionDuration = questionStart - convStart
                         questionsDict[question] = questionDuration
@@ -292,7 +291,7 @@ try:
                         questionStart = questionEnd
                         questionsDict[question] = questionDuration
                         print(questionsDict)
-                if button3:
+                if button3: # End conversation and send the data to the broker
                     print("Terminate conversation...")
                     changeLed(2)
                     time.sleep(3)
@@ -302,10 +301,10 @@ try:
                     msg = generateMessage(questionsDict, convEnd, waitEnd)
                     publishMessage(client, topic, msg)
         time.sleep(0.1)
-except KeyboardInterrupt:
+except KeyboardInterrupt: # keyboard interruption
     print("Keyboard interrupt, cleaning up GPIOs...")
     GPIO.cleanup()
-finally:
+finally: 
     print("Deactivating ChatSpot...")
     lcd.clear()
     setRGB(0, 0, 0)
