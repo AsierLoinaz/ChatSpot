@@ -121,7 +121,7 @@ To make all components of ChatSpot work together, follow these steps:
      This crontab routine activates all the funcionality when turning the RaspberryPi on:
 
      ```bash
-     @reboot /bin/bash -c "source <env_name></env_name>/bin/activate && cd path/to/the/project && python main.py" >> /path/to/log/folder/ChatSpot-raspi.log 2>&1
+     @reboot /bin/bash -c "source <env_name>/bin/activate && cd path/to/the/project && python main.py" >> /path/to/log/folder/ChatSpot-raspi.log 2>&1
      ```
 
 2. **On the Server/PC:**
